@@ -1,0 +1,34 @@
+"""
+Tests for the core functionality of the Video Color Palette Analyzer.
+"""
+
+import os
+import unittest
+import numpy as np
+from PIL import Image
+import cv2
+
+# Add the project root to the Python path
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.core.video_color_palette import (
+    get_dominant_color_kmeans,
+    get_dominant_color_histogram,
+    analyze_colors,
+    create_color_palette,
+    generate_metadata
+)
+
+
+class TestCoreFunctionality(unittest.TestCase):
+    """Tests for core functionality of the video color palette analyzer."""
+    
+    def setUp(self):
+        """Set up test data."""
+        # Create a test frame (solid red)
+        self.red_frame = np.zeros((100, 100, 3), dtype=np.uint8)
+        self.red_frame[:, :] = [0, 0, 255]  # BGR format (OpenCV)
+        
+        # Create a test frame (solid blue)
+        self.blue_frame = np
