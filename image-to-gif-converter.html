@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to GIF Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        .ad-banner-top {
+            background-color: #eee;
+            height: 90px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            border: 1px dashed #999;
+        }
+        
+        .ad-banner-side {
+            background-color: #eee;
+            width: 100%;
+            height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px dashed #999;
+        }
+        
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            color: #666;
+        }
+        
+        .upload-container {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        
+        .upload-container.active {
+            border-color: #2196F3;
+            background-color: #e3f2fd;
+        }
+        
+        #file-input {
+            display: none;
+        }
+        
+        .upload-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        
+        .settings-container {
+            margin-top: 20px;
+        }
+        
+        .images-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .image-preview {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .remove-image {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .result-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .gif-preview {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .download-button {
+            background-color: #2196F3;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            width: 0%;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        input[type="range"],
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .layout {
+                display: flex;
+                gap: 20px;
+            }
+            
+            .content {
+                flex: 3;
+            }
+            
+            .sidebar {
+                flex: 1;
+            }
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Image to GIF Converter</h1>
+            <p>Upload your images and create a downloadable GIF in seconds!</p>
+        </header>
+        
+        <div class="ad-banner-top">
+            <p>Advertisement Banner (728x90)</p>
+        </div>
+        
+        <div class="layout">
+            <main class="content">
+                <div class="upload-container" id="drop-area">
+                    <p>Drag & drop images here or</p>
+                    <input type="file" id="file-input" accept="image/*" multiple>
+                    <button class="upload-button" id="upload-button">Select Images</button>
+                </div>
+                
+                <div id="images-container" class="images-container"></div>
+                
+                <div class="settings-container">
+                    <h2>GIF Settings</h2>
+                    <div class="settings-grid">
+                        <div>
+                            <label for="delay">Frame Delay (ms):</label>
+                            <input type="range" id="delay" min="50" max="1000" step="50" value="200">
+                            <span id="delay-value">200ms</span>
+                        </div>
+                        
+                        <div>
+                            <label for="quality">Quality:</label>
+                            <input type="range" id="quality" min="1" max="20" value="10">
+                            <span id="quality-value">10</span>
+                        </div>
+                        
+                        <div>
+                            <label for="width">Width (px):</label>
+                            <input type="range" id="width" min="50" max="800" step="10" value="400">
+                            <span id="width-value">400px</span>
+                        </div>
+                        
+                        <div>
+                            <label for="repeat">Loop:</label>
+                            <select id="repeat">
+                                <option value="0">Forever</option>
+                                <option value="1">Once</option>
+                                <option value="3">3 times</option>
+                                <option value="5">5 times</option>
+                                <option value="10">10 times</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button id="create-gif" class="upload-button" disabled>Create GIF</button>
+                    
+                    <div class="progress-container hidden" id="progress-container">
+                        <div class="progress-bar" id="progress-bar">0%</div>
+                    </div>
+                </div>
+                
+                <div class="result-container hidden" id="result-container">
+                    <h2>Your GIF</h2>
+                    <img id="gif-preview" class="gif-preview" alt="GIF Preview">
+                    <a id="download-link" class="download-button" download="animation.gif">Download GIF</a>
+                </div>
+            </main>
+            
+            <aside class="sidebar">
+                <div class="ad-banner-side">
+                    <p>Advertisement Banner (300x600)</p>
+                </div>
+            </aside>
+        </div>
+        
+        <footer class="footer">
+            <p>© 2025 Servo Core - Image to GIF Converter | All Rights Reserved</p>
+        </footer>
+    </div>
+    
+    <script>
+        // DOM Elements
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const uploadButton = document.getElementById('upload-button');
+        const imagesContainer = document.getElementById('images-container');
+        const createGifButton = document.getElementById('create-gif');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const resultContainer = document.getElementById('result-container');
+        const gifPreview = document.getElementById('gif-preview');
+        const downloadLink = document.getElementById('download-link');
+        
+        // Settings elements
+        const delayInput = document.getElementById('delay');
+        const delayValue = document.getElementById('delay-value');
+        const qualityInput = document.getElementById('quality');
+        const qualityValue = document.getElementById('quality-value');
+        const widthInput = document.getElementById('width');
+        const widthValue = document.getElementById('width-value');
+        const repeatInput = document.getElementById('repeat');
+        
+        // Images array to store uploaded images
+        let images = [];
+        
+        // Event listeners for range inputs
+        delayInput.addEventListener('input', () => {
+            delayValue.textContent = `${delayInput.value}ms`;
+        });
+        
+        qualityInput.addEventListener('input', () => {
+            qualityValue.textContent = qualityInput.value;
+        });
+        
+        widthInput.addEventListener('input', () => {
+            widthValue.textContent = `${widthInput.value}px`;
+        });
+        
+        // Upload button click
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', handleFiles);
+        
+        // Drag and drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('active');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('active');
+        }
+        
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files } });
+        }
+        
+        // Handle files upload
+        function handleFiles(e) {
+            const fileList = e.target.files;
+            if (!fileList || fileList.length === 0) return;
+            
+            // Convert FileList to Array
+            Array.from(fileList).forEach(file => {
+                if (!file.type.match('image.*')) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        images.push(img);
+                        updateImagePreviews();
+                        updateCreateButton();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        // Update image previews
+        function updateImagePreviews() {
+            imagesContainer.innerHTML = '';
+            
+            images.forEach((img, index) => {
+                const previewContainer = document.createElement('div');
+                previewContainer.className = 'image-preview';
+                
+                const imgElement = document.createElement('img');
+                imgElement.src = img.src;
+                previewContainer.appendChild(imgElement);
+                
+                const removeButton = document.createElement('button');
+                removeButton.className = 'remove-image';
+                removeButton.textContent = '×';
+                removeButton.addEventListener('click', () => {
+                    images.splice(index, 1);
+                    updateImagePreviews();
+                    updateCreateButton();
+                });
+                previewContainer.appendChild(removeButton);
+                
+                imagesContainer.appendChild(previewContainer);
+            });
+        }
+        
+        // Update create button state
+        function updateCreateButton() {
+            createGifButton.disabled = images.length < 2;
+        }
+        
+        // Create GIF button click
+        createGifButton.addEventListener('click', createGif);
+        
+        // Create GIF function
+        function createGif() {
+            // Hide result container if visible
+            resultContainer.classList.add('hidden');
+            
+            // Show progress container
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+            
+            // Disable create button
+            createGifButton.disabled = true;
+            
+            // Get settings
+            const delay = parseInt(delayInput.value);
+            const quality = parseInt(qualityInput.value);
+            const width = parseInt(widthInput.value);
+            const repeat = parseInt(repeatInput.value);
+            
+            // Create GIF using gif.js
+            const gif = new GIF({
+                workers: 2,
+                quality: 21 - quality, // Inverse the quality (lower is better in gif.js)
+                width: width,
+                height: width * (images[0].height / images[0].width), // Maintain aspect ratio
+                workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
+                repeat: repeat
+            });
+            
+            // Add images to GIF
+            images.forEach(img => {
+                // Create a canvas to resize the image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas dimensions
+                canvas.width = width;
+                canvas.height = width * (img.height / img.width);
+                
+                // Draw and resize image to canvas
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                // Add frame to GIF
+                gif.addFrame(canvas, { delay: delay });
+            });
+            
+            // GIF progress
+            gif.on('progress', (p) => {
+                const progress = Math.round(p * 100);
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `${progress}%`;
+            });
+            
+            // GIF finished
+            gif.on('finished', (blob) => {
+                // Enable create button
+                createGifButton.disabled = false;
+                
+                // Create object URL for the blob
+                const url = URL.createObjectURL(blob);
+                
+                // Set preview and download link
+                gifPreview.src = url;
+                downloadLink.href = url;
+                
+                // Show result container
+                resultContainer.classList.remove('hidden');
+                
+                // Hide progress container
+                progressContainer.classList.add('hidden');
+                
+                // Get file size
+                const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2);
+                console.log(`GIF created: ${fileSizeMB}MB`);
+            });
+            
+            // Start rendering
+            gif.render();
+        }
+    </script>
+</body>
+</html>
