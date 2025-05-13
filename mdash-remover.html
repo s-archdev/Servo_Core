@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M Dash Remover</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group, .output-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        #highlightedText {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        #resultText {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 150px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .highlight {
+            color: red;
+            font-weight: bold;
+        }
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .copy-btn {
+            background-color: #2196F3;
+        }
+        .copy-btn:hover {
+            background-color: #0b7dda;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+        }
+        .ad-space {
+            background-color: #eee;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>M Dash Remover</h1>
+        
+        <div class="ad-space">
+            <!-- Ad Space: Replace with your ad code -->
+            <p>Advertisement Space</p>
+        </div>
+
+        <div class="input-group">
+            <label for="inputText">Paste your text here:</label>
+            <textarea id="inputText" placeholder="Paste the text containing M dashes (—) here..."></textarea>
+            <div class="button-group">
+                <button onclick="processText()">Process Text</button>
+                <button onclick="clearText()">Clear</button>
+            </div>
+        </div>
+
+        <div class="output-group">
+            <label>Text with M dashes highlighted:</label>
+            <div id="highlightedText"></div>
+            <div class="button-group">
+                <button class="copy-btn" onclick="copyHighlighted()">Copy to Clipboard</button>
+            </div>
+        </div>
+
+        <div class="output-group">
+            <label>Text with M dashes removed:</label>
+            <div id="resultText"></div>
+            <div class="button-group">
+                <button class="copy-btn" onclick="copyResult()">Copy to Clipboard</button>
+            </div>
+        </div>
+        
+        <div class="ad-space">
+            <!-- Ad Space: Replace with your ad code -->
+            <p>Advertisement Space</p>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>© 2025 M Dash Remover Tool | <a href="#">Privacy Policy</a> | <a href="#">Terms of Use</a></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check for text in URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const textParam = urlParams.get('text');
+            
+            if (textParam) {
+                const decodedText = decodeURIComponent(textParam);
+                document.getElementById('inputText').value = decodedText;
+                processText();
+            }
+        });
+
+        function processText() {
+            const inputText = document.getElementById('inputText').value;
+            
+            // For highlighting: Replace em dashes with a span element
+            const highlightedText = inputText.replace(/—/g, '<span class="highlight">—</span>');
+            document.getElementById('highlightedText').innerHTML = highlightedText;
+            
+            // For removing: Simply remove all em dashes
+            const resultText = inputText.replace(/—/g, '');
+            document.getElementById('resultText').innerHTML = resultText;
+        }
+
+        function clearText() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('highlightedText').innerHTML = '';
+            document.getElementById('resultText').innerHTML = '';
+        }
+
+        function copyHighlighted() {
+            const highlightedText = document.getElementById('highlightedText').innerText;
+            copyToClipboard(highlightedText);
+        }
+
+        function copyResult() {
+            const resultText = document.getElementById('resultText').innerText;
+            copyToClipboard(resultText);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text)
+                .then(() => {
+                    alert('Text copied to clipboard!');
+                })
+                .catch(err => {
+                    console.error('Could not copy text:', err);
+                    alert('Failed to copy to clipboard. Please try again.');
+                });
+        }
+    </script>
+</body>
+</html>
