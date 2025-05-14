@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Frame Slicer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding-top: 20px;
+            padding-bottom: 40px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 960px;
+        }
+        .header {
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e5e5e5;
+            margin-bottom: 30px;
+        }
+        .video-container {
+            margin-bottom: 20px;
+        }
+        .progress-container {
+            margin: 20px 0;
+        }
+        #uploadProgress {
+            height: 20px;
+        }
+        .frame-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .frame-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            background-color: white;
+        }
+        .frame-item img {
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+        .frame-item p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            text-align: center;
+        }
+        #errorAlert {
+            display: none;
+        }
+        .settings {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .video-preview {
+            width: 100%;
+            max-height: 400px;
+            background-color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Video Frame Slicer</h1>
+            <p class="lead">Upload a video to extract equidistant frames and create a sliced video</p>
+        </div>
+
+        <div class="alert alert-danger" role="alert" id="errorAlert"></div>
+        
+        <div id="uploadSection">
+            <h3>Step 1: Upload Video</h3>
+            <div class="mb-3">
+                <label for="videoFile" class="form-label">Select video file (MP4, AVI, MOV, WEBM, MKV)</label>
+                <input class="form-control" type="file" id="videoFile" accept=".mp4,.avi,.mov,.webm,.mkv">
+            </div>
+            <button class="btn btn-primary" id="uploadBtn">Upload</button>
+            
+            <div class="progress-container">
+                <div class="progress">
+                    <div id="uploadProgress" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="processingSection" style="display: none;">
+            <h3>Step 2: Video Settings</h3>
+            <div class="settings">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="numFrames" class="form-label">Number of frames to extract</label>
+                            <input type="number" class="form-control" id="numFrames" min="2" value="10">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="frameDuration" class="form-label">Frame display duration (seconds)</label>
+                            <input type="number" class="form-control" id="frameDuration" min="0.1" step="0.1" value="1.0">
+                        </div>
+                    </div>
+                </div>
+                <div id="videoMetadata"></div>
+                <button class="btn btn-primary mt-3" id="processBtn">Process Video</button>
+            </div>
+        </div>
+
+        <div id="resultsSection" style="display: none;">
+            <h3>Step 3: Results</h3>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="video-container">
+                        <h4>Original Video</h4>
+                        <video id="originalVideo" class="video-preview" controls>
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="video-container">
+                        <h4>Sliced Video</h4>
+                        <video id="slicedVideo" class="video-preview" controls>
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+            </div>
+            
+            <h4>Extracted Frames</h4>
+            <div class="frame-gallery" id="frameGallery"></div>
+            
+            <div class="mt-4">
+                <button class="btn btn-success" id="downloadBtn">Download Sliced Video</button>
+                <button class="btn btn-secondary ms-2" id="newProcessBtn">Process New Video</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const videoFileInput = document.getElementById('videoFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const processBtn = document.getElementById('processBtn');
+            const uploadProgress = document.getElementById('uploadProgress');
+            const errorAlert = document.getElementById('errorAlert');
+            const numFramesInput = document.getElementById('numFrames');
+            const frameDurationInput = document.getElementById('frameDuration');
+            const originalVideo = document.getElementById('originalVideo');
+            const slicedVideo = document.getElementById('slicedVideo');
+            const frameGallery = document.getElementById('frameGallery');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const newProcessBtn = document.getElementById('newProcessBtn');
+            const videoMetadata = document.getElementById('videoMetadata');
+            
+            // Sections
+            const uploadSection = document.getElementById('uploadSection');
+            const processingSection = document.getElementById('processingSection');
+            const resultsSection = document.getElementById('resultsSection');
+            
+            // Session data
+            let sessionData = null;
+            
+            // Show error message
+            function showError(message) {
+                errorAlert.textContent = message;
+                errorAlert.style.display = 'block';
+                setTimeout(() => {
+                    errorAlert.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Upload video
+            uploadBtn.addEventListener('click', function() {
+                if (!videoFileInput.files.length) {
+                    showError('Please select a video file');
+                    return;
+                }
+                
+                const file = videoFileInput.files[0];
+                const formData = new FormData();
+                formData.append('video', file);
+                
+                // Reset progress
+                uploadProgress.style.width = '0%';
+                uploadProgress.textContent = '0%';
+                
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        uploadProgress.style.width = percentComplete + '%';
+                        uploadProgress.textContent = percentComplete + '%';
+                    }
+                });
+                
+                xhr.addEventListener('load', function() {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        sessionData = response;
+                        
+                        // Display video metadata
+                        const metadata = response.metadata;
+                        videoMetadata.innerHTML = `
+                            <div class="mt-3">
+                                <h5>Video Information:</h5>
+                                <p>
+                                    Resolution: ${metadata.width}x${metadata.height} pixels<br>
+                                    Frame Rate: ${metadata.fps} FPS<br>
+                                    Duration: ${metadata.duration}<br>
+                                    Total Frames: ${metadata.frame_count}
+                                </p>
+                            </div>
+                        `;
+                        
+                        // Show processing section
+                        uploadSection.style.display = 'none';
+                        processingSection.style.display = 'block';
+                        
+                        // Suggest default number of frames based on video duration
+                        const suggestedFrames = Math.min(Math.max(5, Math.ceil(metadata.duration_raw / 5)), 30);
+                        numFramesInput.value = suggestedFrames;
+                    } else {
+                        showError('Upload failed: ' + (xhr.responseText || 'Unknown error'));
+                    }
+                });
+                
+                xhr.addEventListener('error', function() {
+                    showError('Network error occurred');
+                });
+                
+                xhr.open('POST', '/upload', true);
+                xhr.send(formData);
+            });
+            
+            // Process video
+            processBtn.addEventListener('click', function() {
+                if (!sessionData) {
+                    showError('No video uploaded');
+                    return;
+                }
+                
+                const numFrames = parseInt(numFramesInput.value);
+                const frameDuration = parseFloat(frameDurationInput.value);
+                
+                if (numFrames < 2) {
+                    showError('Please select at least 2 frames');
+                    return;
+                }
+                
+                if (frameDuration < 0.1) {
+                    showError('Frame duration must be at least 0.1 seconds');
+                    return;
+                }
+                
+                const data = {
+                    session_id: sessionData.session_id,
+                    file_path: sessionData.file_path,
+                    num_frames: numFrames,
+                    frame_duration: frameDuration
+                };
+                
+                processBtn.disabled = true;
+                processBtn.textContent = 'Processing...';
+                
+                fetch('/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update session data
+                        sessionData = {...sessionData, ...data};
+                        
+                        // Set video sources
+                        originalVideo.src = '/static/uploads/' + data.original_video;
+                        slicedVideo.src = '/static/results/' + data.sliced_video;
+                        
+                        // Load both videos
+                        originalVideo.load();
+                        slicedVideo.load();
+                        
+                        // Display frames
+                        frameGallery.innerHTML = '';
+                        data.frame_paths.forEach((frame, index) => {
+                            const frameElement = document.createElement('div');
+                            frameElement.className = 'frame-item';
+                            
+                            const img = document.createElement('img');
+                            img.src = `/static/results/${data.frames_folder}/${frame}`;
+                            img.alt = `Frame ${index + 1}`;
+                            
+                            const p = document.createElement('p');
+                            p.textContent = `Frame ${index + 1}`;
+                            
+                            frameElement.appendChild(img);
+                            frameElement.appendChild(p);
+                            frameGallery.appendChild(frameElement);
+                        });
+                        
+                        // Show results section
+                        processingSection.style.display = 'none';
+                        resultsSection.style.display = 'block';
+                    } else {
+                        showError('Processing failed: ' + data.error);
+                        processBtn.disabled = false;
+                        processBtn.textContent = 'Process Video';
+                    }
+                })
+                .catch(error => {
+                    showError('Error: ' + error.message);
+                    processBtn.disabled = false;
+                    processBtn.textContent = 'Process Video';
+                });
+            });
+            
+            // Download sliced video
+            downloadBtn.addEventListener('click', function() {
+                if (sessionData && sessionData.sliced_video) {
+                    const a = document.createElement('a');
+                    a.href = '/static/results/' + sessionData.sliced_video;
+                    a.download = 'sliced_video.mp4';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+            });
+            
+            // Start new process
+            newProcessBtn.addEventListener('click', function() {
+                // Clean session data
+                if (sessionData) {
+                    fetch('/clean', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            session_id: sessionData.session_id
+                        })
+                    })
+                    .catch(error => console.error('Error cleaning session:', error));
+                }
+                
+                // Reset form
+                videoFileInput.value = '';
+                numFramesInput.value = '10';
+                frameDurationInput.value = '1.0';
+                frameGallery.innerHTML = '';
+                sessionData = null;
+                
+                // Show upload section
+                resultsSection.style.display = 'none';
+                processingSection.style.display = 'none';
+                uploadSection.style.display = 'block';
+                
+                // Reset process button
+                processBtn.disabled = false;
+                processBtn.textContent = 'Process Video';
+                
+                // Reset progress
+                uploadProgress.style.width = '0%';
+                uploadProgress.textContent = '0%';
+            });
+        });
+    </script>
+</body>
+</html>
