@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servo Core Metadata Aggregator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f7;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1a73e8;
+            margin-top: 0;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            background-color: #fafafa;
+            transition: all 0.3s;
+        }
+        .upload-area.highlight {
+            border-color: #1a73e8;
+            background-color: #f0f7ff;
+        }
+        .upload-area p {
+            margin: 10px 0 0;
+            color: #666;
+        }
+        .file-input {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .upload-btn:hover {
+            background-color: #1557b0;
+        }
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .card-header {
+            background-color: #f2f2f2;
+            padding: 15px 20px;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .metadata-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .metadata-table th {
+            text-align: left;
+            padding: 12px 10px;
+            background-color: #f7f7f7;
+            border-bottom: 1px solid #ddd;
+            font-weight: 600;
+        }
+        .metadata-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .metadata-table tr:last-child td {
+            border-bottom: none;
+        }
+        .tag {
+            display: inline-block;
+            background-color: #e8f0fe;
+            color: #1a73e8;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        .file-type-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+        .status-bar {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f2f2f2;
+            border-radius: 5px;
+            display: none;
+        }
+        .export-btn {
+            background-color: #34a853;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        .export-btn:hover {
+            background-color: #2d8a46;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Servo Core Metadata Aggregator</h1>
+        
+        <div class="upload-area" id="drop-area">
+            <input type="file" id="file-input" class="file-input" multiple>
+            <button class="upload-btn" id="file-select-btn">Select Files</button>
+            <p>or drag and drop files here</p>
+        </div>
+
+        <div class="status-bar" id="status-bar">Processing files...</div>
+        
+        <div class="results" id="results">
+            <h2>Metadata Results</h2>
+            <div id="metadata-cards"></div>
+            <button class="export-btn" id="export-btn">Export Metadata (JSON)</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('file-input');
+            const fileSelectBtn = document.getElementById('file-select-btn');
+            const statusBar = document.getElementById('status-bar');
+            const results = document.getElementById('results');
+            const metadataCards = document.getElementById('metadata-cards');
+            const exportBtn = document.getElementById('export-btn');
+
+            // Global storage for metadata
+            const allMetadata = [];
+
+            // Prevent default behaviors for drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            // Highlight drop area when dragging files over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                dropArea.classList.remove('highlight');
+            }
+
+            // Handle file selection via button
+            fileSelectBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', handleFiles, false);
+            dropArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles({ target: { files } });
+            }
+
+            async function handleFiles(e) {
+                const fileList = e.target.files;
+                if (fileList.length === 0) return;
+
+                // Clear previous results
+                metadataCards.innerHTML = '';
+                allMetadata.length = 0;
+                
+                // Show status
+                statusBar.style.display = 'block';
+                results.style.display = 'block';
+
+                // Process each file
+                for (const file of fileList) {
+                    try {
+                        const metadata = await extractMetadata(file);
+                        allMetadata.push(metadata);
+                        displayMetadata(metadata);
+                    } catch (error) {
+                        console.error('Error processing file:', file.name, error);
+                    }
+                }
+
+                statusBar.style.display = 'none';
+            }
+
+            async function extractMetadata(file) {
+                // Base metadata that we can get from any file
+                const metadata = {
+                    fileName: file.name,
+                    fileSize: formatFileSize(file.size),
+                    fileType: file.type || getTypeFromExtension(file.name),
+                    lastModified: new Date(file.lastModified).toLocaleString(),
+                    tags: [],
+                    creator: 'Unknown',
+                    customMetadata: {}
+                };
+
+                // Extract extension-specific metadata
+                const extension = file.name.split('.').pop().toLowerCase();
+                
+                try {
+                    // For image files
+                    if (file.type.startsWith('image/')) {
+                        const imgMetadata = await extractImageMetadata(file);
+                        Object.assign(metadata, imgMetadata);
+                    }
+                    // For PDF files
+                    else if (file.type === 'application/pdf' || extension === 'pdf') {
+                        const pdfMetadata = await extractPDFMetadata(file);
+                        Object.assign(metadata, pdfMetadata);
+                    }
+                    // For audio files
+                    else if (file.type.startsWith('audio/')) {
+                        const audioMetadata = await extractAudioMetadata(file);
+                        Object.assign(metadata, audioMetadata);
+                    }
+                    // For video files
+                    else if (file.type.startsWith('video/')) {
+                        const videoMetadata = await extractVideoMetadata(file);
+                        Object.assign(metadata, videoMetadata);
+                    }
+                    // Extract text from text files
+                    else if (file.type.startsWith('text/') || ['txt', 'md', 'json', 'xml', 'csv'].includes(extension)) {
+                        const textMetadata = await extractTextMetadata(file);
+                        Object.assign(metadata, textMetadata);
+                    }
+                } catch (error) {
+                    console.error('Error extracting specific metadata:', error);
+                }
+
+                // Try to add tags based on content
+                metadata.tags = generateTags(metadata);
+
+                return metadata;
+            }
+
+            async function extractImageMetadata(file) {
+                return new Promise((resolve) => {
+                    const metadata = {
+                        dimensions: 'Unknown',
+                        creator: 'Unknown'
+                    };
+
+                    const img = new Image();
+                    img.onload = () => {
+                        metadata.dimensions = `${img.width} × ${img.height}`;
+                        
+                        // Try to extract EXIF data
+                        try {
+                            // This is a simplified version - a real EXIF parser would be more complex
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                const exifData = parseExifData(e.target.result);
+                                if (exifData.artist) {
+                                    metadata.creator = exifData.artist;
+                                }
+                                if (exifData.dateTime) {
+                                    metadata.dateCreated = exifData.dateTime;
+                                }
+                                resolve(metadata);
+                            };
+                            reader.readAsArrayBuffer(file);
+                        } catch (e) {
+                            resolve(metadata);
+                        }
+                    };
+                    
+                    img.onerror = () => {
+                        resolve(metadata);
+                    };
+                    
+                    img.src = URL.createObjectURL(file);
+                });
+            }
+
+            // Simplified EXIF parser - in a real app, you'd use a library
+            function parseExifData(arrayBuffer) {
+                // This is a placeholder - actual EXIF parsing is more complex
+                return {
+                    artist: null,
+                    dateTime: null
+                };
+            }
+
+            async function extractPDFMetadata(file) {
+                // In a real implementation, you'd use a PDF.js or similar
+                return {
+                    creator: 'Unknown',
+                    dateCreated: 'Unknown',
+                    pageCount: 'Unknown',
+                    customMetadata: {
+                        title: 'Unknown',
+                        subject: 'Unknown',
+                        keywords: []
+                    }
+                };
+            }
+
+            async function extractAudioMetadata(file) {
+                return new Promise((resolve) => {
+                    const audio = new Audio();
+                    audio.preload = 'metadata';
+                    
+                    audio.onloadedmetadata = () => {
+                        resolve({
+                            duration: formatDuration(audio.duration),
+                            customMetadata: {
+                                bitrate: 'Unknown',
+                                sampleRate: 'Unknown'
+                            }
+                        });
+                    };
+                    
+                    audio.onerror = () => {
+                        resolve({
+                            duration: 'Unknown',
+                            customMetadata: {
+                                bitrate: 'Unknown',
+                                sampleRate: 'Unknown'
+                            }
+                        });
+                    };
+                    
+                    audio.src = URL.createObjectURL(file);
+                });
+            }
+
+            async function extractVideoMetadata(file) {
+                return new Promise((resolve) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    
+                    video.onloadedmetadata = () => {
+                        resolve({
+                            dimensions: `${video.videoWidth} × ${video.videoHeight}`,
+                            duration: formatDuration(video.duration),
+                            customMetadata: {
+                                framerate: 'Unknown',
+                                codec: 'Unknown'
+                            }
+                        });
+                    };
+                    
+                    video.onerror = () => {
+                        resolve({
+                            dimensions: 'Unknown',
+                            duration: 'Unknown',
+                            customMetadata: {
+                                framerate: 'Unknown',
+                                codec: 'Unknown'
+                            }
+                        });
+                    };
+                    
+                    video.src = URL.createObjectURL(file);
+                });
+            }
+
+            async function extractTextMetadata(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const content = e.target.result;
+                        const metadata = {
+                            wordCount: content.split(/\s+/).filter(Boolean).length,
+                            lineCount: content.split('\n').length,
+                            customMetadata: {
+                                encoding: 'UTF-8' // Simplified
+                            }
+                        };
+                        
+                        // Try to extract creation info from content
+                        const creatorMatch = content.match(/author|creator|by[\s:]+([^\n\r]+)/i);
+                        if (creatorMatch && creatorMatch[1]) {
+                            metadata.creator = creatorMatch[1].trim();
+                        }
+                        
+                        resolve(metadata);
+                    };
+                    reader.onerror = () => {
+                        resolve({
+                            wordCount: 'Unknown',
+                            lineCount: 'Unknown',
+                            customMetadata: {}
+                        });
+                    };
+                    reader.readAsText(file);
+                });
+            }
+
+            function generateTags(metadata) {
+                const tags = [];
+                const extension = metadata.fileName.split('.').pop().toLowerCase();
+                
+                // Add file type tag
+                tags.push(extension);
+                
+                // Add size category
+                const sizeInMB = parseFloat(metadata.fileSize);
+                if (!isNaN(sizeInMB)) {
+                    if (sizeInMB < 0.1) tags.push('small');
+                    else if (sizeInMB < 5) tags.push('medium');
+                    else tags.push('large');
+                }
+                
+                // Add media-specific tags
+                if (metadata.fileType.startsWith('image/')) {
+                    tags.push('image');
+                    
+                    if (metadata.dimensions) {
+                        const [width] = metadata.dimensions.split('×').map(d => parseInt(d.trim()));
+                        if (width > 1920) tags.push('high-res');
+                    }
+                }
+                else if (metadata.fileType.startsWith('video/')) {
+                    tags.push('video');
+                    if (metadata.duration) {
+                        const minutes = parseInt(metadata.duration.split(':')[0]);
+                        if (minutes < 3) tags.push('short');
+                        else if (minutes > 10) tags.push('long');
+                    }
+                }
+                else if (metadata.fileType.startsWith('audio/')) {
+                    tags.push('audio');
+                }
+                else if (metadata.fileType.startsWith('text/')) {
+                    tags.push('document');
+                    if (metadata.wordCount > 1000) tags.push('lengthy');
+                }
+                
+                return tags;
+            }
+
+            function displayMetadata(metadata) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                
+                // Determine icon based on file type
+                let fileIcon = '📄';
+                if (metadata.fileType.startsWith('image/')) fileIcon = '🖼️';
+                else if (metadata.fileType.startsWith('video/')) fileIcon = '🎬';
+                else if (metadata.fileType.startsWith('audio/')) fileIcon = '🎵';
+                else if (metadata.fileType.startsWith('text/')) fileIcon = '📝';
+                else if (metadata.fileType.includes('pdf')) fileIcon = '📕';
+                
+                // Card header
+                const cardHeader = document.createElement('div');
+                cardHeader.className = 'card-header';
+                cardHeader.innerHTML = `
+                    <div>
+                        <span class="file-type-icon">${fileIcon}</span>
+                        ${metadata.fileName}
+                    </div>
+                    <div>${metadata.fileSize}</div>
+                `;
+                card.appendChild(cardHeader);
+                
+                // Card body with metadata table
+                const cardBody = document.createElement('div');
+                cardBody.className = 'card-body';
+                
+                // Create metadata table
+                const table = document.createElement('table');
+                table.className = 'metadata-table';
+                
+                // Basic metadata rows
+                const basicRows = [
+                    ['File Type', metadata.fileType],
+                    ['Last Modified', metadata.lastModified],
+                    ['Creator', metadata.creator || 'Unknown']
+                ];
+                
+                // Add conditional rows based on file type
+                if (metadata.dimensions) basicRows.push(['Dimensions', metadata.dimensions]);
+                if (metadata.duration) basicRows.push(['Duration', metadata.duration]);
+                if (metadata.wordCount) basicRows.push(['Word Count', metadata.wordCount.toLocaleString()]);
+                if (metadata.lineCount) basicRows.push(['Line Count', metadata.lineCount.toLocaleString()]);
+                if (metadata.pageCount) basicRows.push(['Pages', metadata.pageCount]);
+                
+                // Add each custom metadata
+                for (const [key, value] of Object.entries(metadata.customMetadata)) {
+                    if (value && value !== 'Unknown') {
+                        basicRows.push([formatKey(key), value]);
+                    }
+                }
+                
+                // Create table rows
+                basicRows.forEach(([key, value]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <th>${key}</th>
+                        <td>${value}</td>
+                    `;
+                    table.appendChild(row);
+                });
+                
+                // Add tags row
+                if (metadata.tags && metadata.tags.length > 0) {
+                    const tagsRow = document.createElement('tr');
+                    const tagsCell = document.createElement('td');
+                    tagsCell.colSpan = 2;
+                    tagsCell.innerHTML = '<strong>Tags:</strong> ';
+                    
+                    metadata.tags.forEach(tag => {
+                        const tagSpan = document.createElement('span');
+                        tagSpan.className = 'tag';
+                        tagSpan.textContent = tag;
+                        tagsCell.appendChild(tagSpan);
+                    });
+                    
+                    tagsRow.appendChild(tagsCell);
+                    table.appendChild(tagsRow);
+                }
+                
+                cardBody.appendChild(table);
+                card.appendChild(cardBody);
+                metadataCards.appendChild(card);
+            }
+
+            // Format helpers
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function formatDuration(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+
+            function formatKey(key) {
+                return key.charAt(0).toUpperCase() + 
+                       key.slice(1).replace(/([A-Z])/g, ' $1').trim();
+            }
+
+            function getTypeFromExtension(filename) {
+                const extension = filename.split('.').pop().toLowerCase();
+                const mimeTypes = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'bmp': 'image/bmp',
+                    'webp': 'image/webp',
+                    'mp3': 'audio/mpeg',
+                    'wav': 'audio/wav',
+                    'mp4': 'video/mp4',
+                    'webm': 'video/webm',
+                    'txt': 'text/plain',
+                    'html': 'text/html',
+                    'css': 'text/css',
+                    'js': 'application/javascript',
+                    'json': 'application/json',
+                    'pdf': 'application/pdf',
+                    'doc': 'application/msword',
+                    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'xls': 'application/vnd.ms-excel',
+                    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'ppt': 'application/vnd.ms-powerpoint',
+                    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+                    'zip': 'application/zip',
+                    'rar': 'application/x-rar-compressed',
+                    'tar': 'application/x-tar',
+                    'gz': 'application/gzip',
+                    'xml': 'application/xml',
+                    'csv': 'text/csv'
+                };
+                
+                return mimeTypes[extension] || 'application/octet-stream';
+            }
+
+            // Export functionality
+            exportBtn.addEventListener('click', () => {
+                if (allMetadata.length === 0) return;
+                
+                const exportData = JSON.stringify(allMetadata, null, 2);
+                const blob = new Blob([exportData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'servo-metadata-export.json';
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            });
+        });
+    </script>
+</body>
+</html>
