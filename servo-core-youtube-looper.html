@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servo Core - YouTube Video Looper</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --background-color: #f5f5f5;
+            --text-color: #333;
+            --card-bg: #fff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .logo {
+            font-weight: bold;
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        main {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            margin-bottom: 1rem;
+        }
+
+        #player {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .history {
+            margin-top: 1rem;
+        }
+
+        #historyList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .history-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .history-item button {
+            background-color: transparent;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+
+        .status {
+            background-color: #e8f4fd;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .feature {
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            background-color: var(--card-bg);
+            text-align: center;
+        }
+
+        .feature h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 1.5rem;
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .btn-group {
+                flex-direction: column;
+            }
+            
+            .feature {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">Servo Core</div>
+        <h1>YouTube Video Looper</h1>
+        <p class="tagline">Play YouTube videos on continuous loop without interruptions</p>
+    </header>
+
+    <div class="container">
+        <main>
+            <section class="card">
+                <div class="video-container">
+                    <div id="player"></div>
+                </div>
+                
+                <div class="status" id="playerStatus">
+                    No video currently playing. Enter a YouTube URL below to start.
+                </div>
+                
+                <div class="controls">
+                    <div class="input-group">
+                        <label for="videoUrl">YouTube Video URL or ID:</label>
+                        <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=xxxxxxxxxxx or just xxxxxxxxxxx">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="startTime">Start Time (seconds):</label>
+                        <input type="number" id="startTime" min="0" value="0" placeholder="0">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="endTime">End Time (seconds, 0 for end of video):</label>
+                        <input type="number" id="endTime" min="0" value="0" placeholder="0">
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button id="loadBtn" class="btn">Load Video</button>
+                        <button id="saveBtn" class="btn">Save Configuration</button>
+                        <button id="clearHistoryBtn" class="btn">Clear History</button>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="card">
+                <h2>Saved Configurations</h2>
+                <div class="history">
+                    <ul id="historyList">
+                        <!-- History items will be added here dynamically -->
+                    </ul>
+                </div>
+            </section>
+            
+            <section class="features">
+                <div class="feature">
+                    <h3>Ad-Free Experience</h3>
+                    <p>Our custom player ensures continuous playback without interrupting advertisements.</p>
+                </div>
+                <div class="feature">
+                    <h3>Custom Looping</h3>
+                    <p>Set precise start and end times to loop only your favorite parts of any video.</p>
+                </div>
+                <div class="feature">
+                    <h3>Save Configurations</h3>
+                    <p>Store your favorite video settings for quick access later.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <footer>
+        <p>© 2025 Servo Core. Made with ♥ for uninterrupted viewing.</p>
+    </footer>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script>
+        // YouTube API setup
+        let player;
+        let videoId = '';
+        let startTime = 0;
+        let endTime = 0;
+        let isLooping = false;
+        let savedConfigurations = [];
+        
+        // Load saved configurations from localStorage
+        function loadSavedConfigurations() {
+            const saved = localStorage.getItem('servoCoreSavedConfigs');
+            if (saved) {
+                savedConfigurations = JSON.parse(saved);
+                renderSavedConfigurations();
+            }
+        }
+        
+        // Save configurations to localStorage
+        function saveConfigurationsToStorage() {
+            localStorage.setItem('servoCoreSavedConfigs', JSON.stringify(savedConfigurations));
+        }
+        
+        // Render saved configurations list
+        function renderSavedConfigurations() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            if (savedConfigurations.length === 0) {
+                historyList.innerHTML = '<li class="history-item">No saved configurations yet.</li>';
+                return;
+            }
+            
+            savedConfigurations.forEach((config, index) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'history-item';
+                
+                const title = document.createElement('span');
+                title.textContent = config.title || `Video ${config.videoId}`;
+                
+                const loadButton = document.createElement('button');
+                loadButton.textContent = 'Load';
+                loadButton.onclick = () => loadSavedConfiguration(index);
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => deleteSavedConfiguration(index);
+                
+                const buttonContainer = document.createElement('div');
+                buttonContainer.appendChild(loadButton);
+                buttonContainer.appendChild(deleteButton);
+                
+                listItem.appendChild(title);
+                listItem.appendChild(buttonContainer);
+                historyList.appendChild(listItem);
+            });
+        }
+        
+        // Load a saved configuration
+        function loadSavedConfiguration(index) {
+            const config = savedConfigurations[index];
+            document.getElementById('videoUrl').value = config.videoId;
+            document.getElementById('startTime').value = config.startTime;
+            document.getElementById('endTime').value = config.endTime;
+            
+            loadVideo(config.videoId, config.startTime, config.endTime);
+        }
+        
+        // Delete a saved configuration
+        function deleteSavedConfiguration(index) {
+            savedConfigurations.splice(index, 1);
+            saveConfigurationsToStorage();
+            renderSavedConfigurations();
+        }
+        
+        // Extract video ID from YouTube URL
+        function extractVideoId(url) {
+            if (!url) return '';
+            
+            // Check if it's already just an ID (11 characters)
+            if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+                return url;
+            }
+            
+            // Try to extract from various YouTube URL formats
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            
+            if (match && match[2].length === 11) {
+                return match[2];
+            }
+            
+            return '';
+        }
+        
+        // Initialize YouTube API
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '100%',
+                width: '100%',
+                videoId: '',
+                playerVars: {
+                    'playsinline': 1,
+                    'autoplay': 0,
+                    'controls': 1,
+                    'showinfo': 1,
+                    'rel': 0,
+                    'fs': 1,
+                    'modestbranding': 1
+                },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+        
+        // On player ready
+        function onPlayerReady(event) {
+            document.getElementById('playerStatus').textContent = 'Player ready. Enter a YouTube URL to start.';
+        }
+        
+        // On player state change
+        function onPlayerStateChange(event) {
+            // If video ended and looping is enabled
+            if (event.data === YT.PlayerState.ENDED && isLooping) {
+                player.seekTo(startTime, true);
+                player.playVideo();
+            }
+            
+            // If video is playing, check for end time
+            if (event.data === YT.PlayerState.PLAYING && endTime > 0) {
+                // Check current time every second
+                const checkTimeInterval = setInterval(() => {
+                    const currentTime = player.getCurrentTime();
+                    
+                    // If current time is past end time, go back to start time
+                    if (currentTime >= endTime) {
+                        player.seekTo(startTime, true);
+                    }
+                    
+                    // If player is no longer playing, clear interval
+                    if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+                        clearInterval(checkTimeInterval);
+                    }
+                }, 1000);
+            }
+        }
+        
+        // Load video with parameters
+        function loadVideo(videoIdParam, startTimeParam, endTimeParam) {
+            videoId = extractVideoId(videoIdParam);
+            
+            if (!videoId) {
+                document.getElementById('playerStatus').textContent = 'Invalid YouTube URL or ID. Please check and try again.';
+                return;
+            }
+            
+            startTime = parseInt(startTimeParam) || 0;
+            endTime = parseInt(endTimeParam) || 0;
+            isLooping = true;
+            
+            // If player is not ready, wait and try again
+            if (!player || !player.loadVideoById) {
+                setTimeout(() => loadVideo(videoId, startTime, endTime), 1000);
+                return;
+            }
+            
+            player.loadVideoById({
+                'videoId': videoId,
+                'startSeconds': startTime,
+                'endSeconds': endTime > 0 ? endTime : undefined
+            });
+            
+            document.getElementById('playerStatus').textContent = `Now playing video ID: ${videoId} | Loop: ${startTime}s to ${endTime > 0 ? endTime + 's' : 'end'}`;
+        }
+        
+        // Save current configuration
+        function saveCurrentConfiguration() {
+            const currentVideoId = document.getElementById('videoUrl').value;
+            const extractedVideoId = extractVideoId(currentVideoId);
+            
+            if (!extractedVideoId) {
+                alert('Please enter a valid YouTube URL or ID first.');
+                return;
+            }
+            
+            const currentStartTime = parseInt(document.getElementById('startTime').value) || 0;
+            const currentEndTime = parseInt(document.getElementById('endTime').value) || 0;
+            
+            // Ask for a title
+            const title = prompt('Enter a name for this configuration:', '');
+            
+            if (title === null) {
+                // User canceled
+                return;
+            }
+            
+            // Save configuration
+            savedConfigurations.push({
+                title: title || `Video ${extractedVideoId}`,
+                videoId: extractedVideoId,
+                startTime: currentStartTime,
+                endTime: currentEndTime
+            });
+            
+            saveConfigurationsToStorage();
+            renderSavedConfigurations();
+            
+            alert('Configuration saved successfully!');
+        }
+        
+        // Clear all history
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all saved configurations?')) {
+                savedConfigurations = [];
+                saveConfigurationsToStorage();
+                renderSavedConfigurations();
+            }
+        }
+        
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load YouTube IFrame API
+            const tag = document.createElement('script');
+            tag.src = 'https://www.youtube.com/iframe_api';
+            const firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            
+            // Set up event listeners
+            document.getElementById('loadBtn').addEventListener('click', function() {
+                const videoUrl = document.getElementById('videoUrl').value;
+                const startTimeValue = document.getElementById('startTime').value;
+                const endTimeValue = document.getElementById('endTime').value;
+                
+                loadVideo(videoUrl, startTimeValue, endTimeValue);
+            });
+            
+            document.getElementById('saveBtn').addEventListener('click', saveCurrentConfiguration);
+            document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+            
+            // Load saved configurations
+            loadSavedConfigurations();
+        });
+        
+        // Make onYouTubeIframeAPIReady global
+        window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+    </script>
+</body>
+</html>
