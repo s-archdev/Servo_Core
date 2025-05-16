@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greyscale Image Converter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .input-section, .controls-section, .output-section {
+            margin-bottom: 30px;
+        }
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            flex-grow: 1;
+            transition: background-color 0.3s;
+        }
+        .tab-button.active {
+            background-color: #3498db;
+            color: white;
+        }
+        .tab-button:first-child {
+            border-radius: 5px 0 0 5px;
+        }
+        .tab-button:last-child {
+            border-radius: 0 5px 5px 0;
+        }
+        .tab-content {
+            display: none;
+            margin-top: 15px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        input[type="file"], input[type="text"], button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .slider-container {
+            margin-bottom: 20px;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .slider-label {
+            width: 150px;
+            font-weight: bold;
+        }
+        .slider {
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+        .slider-value {
+            width: 50px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .canvas-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        .image-container {
+            flex: 1;
+            min-width: 300px;
+            text-align: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 400px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+            background-color: #f9f9f9;
+        }
+        .image-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .download-btn {
+            background-color: #27ae60;
+            margin-top: 10px;
+        }
+        .download-btn:hover {
+            background-color: #219653;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+        }
+        @media (max-width: 768px) {
+            .canvas-container {
+                flex-direction: column;
+            }
+            .image-container {
+                margin-bottom: 20px;
+            }
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Greyscale Image Converter</h1>
+        
+        <div class="input-section">
+            <h2>Upload Image</h2>
+            <div class="tab-buttons">
+                <button class="tab-button active" onclick="showTab('file-tab')">Upload File</button>
+                <button class="tab-button" onclick="showTab('url-tab')">Image URL</button>
+            </div>
+            
+            <div id="file-tab" class="tab-content active">
+                <input type="file" id="imageUpload" accept="image/*">
+            </div>
+            
+            <div id="url-tab" class="tab-content">
+                <input type="text" id="imageUrl" placeholder="Enter image URL">
+                <button onclick="loadImageFromUrl()">Load Image</button>
+            </div>
+            
+            <div class="error" id="error-message"></div>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Processing image...</div>
+        </div>
+        
+        <div class="controls-section" id="controls" style="display: none;">
+            <h2>Adjust Greyscale Settings</h2>
+            
+            <div class="slider-container">
+                <div class="slider-row">
+                    <div class="slider-label">Red Weight:</div>
+                    <input type="range" min="0" max="100" value="30" class="slider" id="redWeight">
+                    <div class="slider-value" id="redWeight-value">30%</div>
+                </div>
+                
+                <div class="slider-row">
+                    <div class="slider-label">Green Weight:</div>
+                    <input type="range" min="0" max="100" value="59" class="slider" id="greenWeight">
+                    <div class="slider-value" id="greenWeight-value">59%</div>
+                </div>
+                
+                <div class="slider-row">
+                    <div class="slider-label">Blue Weight:</div>
+                    <input type="range" min="0" max="100" value="11" class="slider" id="blueWeight">
+                    <div class="slider-value" id="blueWeight-value">11%</div>
+                </div>
+                
+                <div class="slider-row">
+                    <div class="slider-label">Brightness:</div>
+                    <input type="range" min="-100" max="100" value="0" class="slider" id="brightness">
+                    <div class="slider-value" id="brightness-value">0</div>
+                </div>
+                
+                <div class="slider-row">
+                    <div class="slider-label">Contrast:</div>
+                    <input type="range" min="-100" max="100" value="0" class="slider" id="contrast">
+                    <div class="slider-value" id="contrast-value">0</div>
+                </div>
+            </div>
+            
+            <button onclick="processImage()">Apply Greyscale Effect</button>
+        </div>
+        
+        <div class="output-section" id="output" style="display: none;">
+            <h2>Result</h2>
+            
+            <div class="canvas-container">
+                <div class="image-container">
+                    <div class="image-label">Original Image</div>
+                    <canvas id="originalCanvas"></canvas>
+                </div>
+                
+                <div class="image-container">
+                    <div class="image-label">Greyscale Image</div>
+                    <canvas id="greyscaleCanvas"></canvas>
+                    <button class="download-btn" onclick="downloadImage()">Download Greyscale Image</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>© 2025 Greyscale Image Converter. All rights reserved.</p>
+    </div>
+
+    <script>
+        // Global variables
+        let originalImage = null;
+        
+        // Event listeners
+        document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+        
+        // Attach event listeners to all sliders
+        const sliders = document.querySelectorAll('.slider');
+        sliders.forEach(slider => {
+            slider.addEventListener('input', updateSliderValue);
+        });
+        
+        // Function to switch between tabs
+        function showTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Deactivate all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Show the selected tab content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Activate the clicked button
+            event.currentTarget.classList.add('active');
+        }
+        
+        // Update slider value display
+        function updateSliderValue(event) {
+            const sliderId = event.target.id;
+            const value = event.target.value;
+            
+            // Update the displayed value
+            document.getElementById(`${sliderId}-value`).textContent = value + (sliderId === 'redWeight' || sliderId === 'greenWeight' || sliderId === 'blueWeight' ? '%' : '');
+            
+            // If we have an image, process it with the new values
+            if (originalImage) {
+                processImage();
+            }
+        }
+        
+        // Handle file upload
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Reset error message
+            document.getElementById('error-message').textContent = '';
+            
+            // Check file type
+            if (!file.type.match('image.*')) {
+                document.getElementById('error-message').textContent = 'Please select an image file.';
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                loadImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Load image from URL
+        function loadImageFromUrl() {
+            const url = document.getElementById('imageUrl').value.trim();
+            if (!url) {
+                document.getElementById('error-message').textContent = 'Please enter a valid URL.';
+                return;
+            }
+            
+            // Reset error message
+            document.getElementById('error-message').textContent = '';
+            
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+            
+            // Create a new image to test the URL
+            const testImage = new Image();
+            testImage.crossOrigin = 'Anonymous';  // Try to enable CORS
+            
+            testImage.onload = function() {
+                loadImage(url);
+            };
+            
+            testImage.onerror = function() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-message').textContent = 'Could not load image from URL. The image might be protected or the URL is invalid.';
+            };
+            
+            testImage.src = url;
+        }
+        
+        // Load image (common function for both upload and URL)
+        function loadImage(src) {
+            originalImage = new Image();
+            originalImage.crossOrigin = 'Anonymous';  // Try to enable CORS
+            
+            originalImage.onload = function() {
+                // Show controls and output sections
+                document.getElementById('controls').style.display = 'block';
+                document.getElementById('output').style.display = 'block';
+                
+                // Draw original image
+                const originalCanvas = document.getElementById('originalCanvas');
+                const greyscaleCanvas = document.getElementById('greyscaleCanvas');
+                
+                // Set canvas dimensions
+                setCanvasDimensions(originalCanvas, originalImage);
+                setCanvasDimensions(greyscaleCanvas, originalImage);
+                
+                // Draw original image
+                const originalCtx = originalCanvas.getContext('2d');
+                originalCtx.drawImage(originalImage, 0, 0, originalCanvas.width, originalCanvas.height);
+                
+                // Process and display greyscale image
+                processImage();
+                
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+            };
+            
+            originalImage.onerror = function() {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-message').textContent = 'Error loading image. Please try again.';
+            };
+            
+            originalImage.src = src;
+        }
+        
+        // Set canvas dimensions while preserving aspect ratio
+        function setCanvasDimensions(canvas, image) {
+            const maxWidth = 400;
+            const maxHeight = 400;
+            
+            let width = image.width;
+            let height = image.height;
+            
+            // Calculate the new dimensions
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = height * (maxWidth / width);
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = width * (maxHeight / height);
+                    height = maxHeight;
+                }
+            }
+            
+            // Set canvas dimensions
+            canvas.width = width;
+            canvas.height = height;
+        }
+        
+        // Process image to apply greyscale effect
+        function processImage() {
+            if (!originalImage) return;
+            
+            // Get slider values
+            const redWeight = parseFloat(document.getElementById('redWeight').value) / 100;
+            const greenWeight = parseFloat(document.getElementById('greenWeight').value) / 100;
+            const blueWeight = parseFloat(document.getElementById('blueWeight').value) / 100;
+            const brightness = parseInt(document.getElementById('brightness').value);
+            const contrast = parseInt(document.getElementById('contrast').value);
+            
+            // Get canvases
+            const originalCanvas = document.getElementById('originalCanvas');
+            const greyscaleCanvas = document.getElementById('greyscaleCanvas');
+            
+            // Get contexts
+            const originalCtx = originalCanvas.getContext('2d');
+            const greyscaleCtx = greyscaleCanvas.getContext('2d');
+            
+            // Draw original image to get pixel data
+            originalCtx.drawImage(originalImage, 0, 0, originalCanvas.width, originalCanvas.height);
+            
+            // Get image data
+            const imageData = originalCtx.getImageData(0, 0, originalCanvas.width, originalCanvas.height);
+            const data = imageData.data;
+            
+            // Calculate contrast factor
+            const contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+            
+            // Process each pixel
+            for (let i = 0; i < data.length; i += 4) {
+                // Get RGB values
+                let r = data[i];
+                let g = data[i + 1];
+                let b = data[i + 2];
+                
+                // Convert to greyscale using weights
+                let grey = Math.round(r * redWeight + g * greenWeight + b * blueWeight);
+                
+                // Apply brightness
+                grey += brightness;
+                
+                // Apply contrast
+                grey = Math.round(contrastFactor * (grey - 128) + 128);
+                
+                // Clamp values
+                grey = Math.max(0, Math.min(255, grey));
+                
+                // Set RGB values to greyscale value
+                data[i] = data[i + 1] = data[i + 2] = grey;
+            }
+            
+            // Put the modified image data back
+            greyscaleCtx.putImageData(imageData, 0, 0);
+        }
+        
+        // Download the greyscale image
+        function downloadImage() {
+            const greyscaleCanvas = document.getElementById('greyscaleCanvas');
+            
+            // Create a temporary link element
+            const downloadLink = document.createElement('a');
+            
+            // Set the download attribute and filename
+            downloadLink.download = 'greyscale-image.png';
+            
+            // Convert canvas to data URL
+            downloadLink.href = greyscaleCanvas.toDataURL('image/png');
+            
+            // Append to the body, click, and remove
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+    </script>
+</body>
+</html>
