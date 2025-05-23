@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servo Core - Audio Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.15);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .file-details {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .conversion-options {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .format-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .format-option {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            min-width: 80px;
+        }
+
+        .format-option:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .format-option.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+        }
+
+        .quality-section {
+            margin-bottom: 20px;
+        }
+
+        .quality-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .quality-slider {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .quality-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .convert-button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            display: none;
+        }
+
+        .convert-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .convert-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-bar {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c66;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #6c6;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .format-group {
+                gap: 10px;
+            }
+            
+            .format-option {
+                padding: 10px 15px;
+                font-size: 0.9em;
+                min-width: 70px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">SERVO CORE</div>
+        <div class="subtitle">Audio Format Converter</div>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">🎵</div>
+            <div class="upload-text">Drop your audio file here</div>
+            <div class="upload-subtext">or click to browse</div>
+            <input type="file" class="file-input" id="fileInput" accept=".mp3,.wav,.m4a,.aac,.ogg,.flac,.aif,.aiff">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-name" id="fileName"></div>
+            <div class="file-details" id="fileDetails"></div>
+        </div>
+
+        <div class="conversion-options" id="conversionOptions">
+            <div class="format-group">
+                <div class="format-option" data-format="wav">WAV</div>
+                <div class="format-option" data-format="mp3">MP3</div>
+                <div class="format-option" data-format="ogg">OGG</div>
+                <div class="format-option" data-format="flac">FLAC</div>
+                <div class="format-option" data-format="aac">AAC</div>
+            </div>
+
+            <div class="quality-section">
+                <div class="quality-label">Audio Quality</div>
+                <input type="range" class="quality-slider" id="qualitySlider" min="64" max="320" value="192" step="32">
+                <div class="quality-value"><span id="qualityValue">192</span> kbps</div>
+            </div>
+
+            <button class="convert-button" id="convertButton">Convert Audio</button>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Processing...</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+    </div>
+
+    <script>
+        class AudioConverter {
+            constructor() {
+                this.audioContext = null;
+                this.audioBuffer = null;
+                this.originalFile = null;
+                this.selectedFormat = null;
+                this.quality = 192;
+                
+                this.initializeElements();
+                this.bindEvents();
+            }
+
+            initializeElements() {
+                this.uploadArea = document.getElementById('uploadArea');
+                this.fileInput = document.getElementById('fileInput');
+                this.fileInfo = document.getElementById('fileInfo');
+                this.fileName = document.getElementById('fileName');
+                this.fileDetails = document.getElementById('fileDetails');
+                this.conversionOptions = document.getElementById('conversionOptions');
+                this.convertButton = document.getElementById('convertButton');
+                this.progressContainer = document.getElementById('progressContainer');
+                this.progressFill = document.getElementById('progressFill');
+                this.progressText = document.getElementById('progressText');
+                this.errorMessage = document.getElementById('errorMessage');
+                this.successMessage = document.getElementById('successMessage');
+                this.qualitySlider = document.getElementById('qualitySlider');
+                this.qualityValue = document.getElementById('qualityValue');
+            }
+
+            bindEvents() {
+                // File upload events
+                this.uploadArea.addEventListener('click', () => this.fileInput.click());
+                this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e.target.files[0]));
+                
+                // Drag and drop events
+                this.uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.add('dragover');
+                });
+                
+                this.uploadArea.addEventListener('dragleave', () => {
+                    this.uploadArea.classList.remove('dragover');
+                });
+                
+                this.uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    this.uploadArea.classList.remove('dragover');
+                    this.handleFileSelect(e.dataTransfer.files[0]);
+                });
+
+                // Format selection
+                document.querySelectorAll('.format-option').forEach(option => {
+                    option.addEventListener('click', () => this.selectFormat(option));
+                });
+
+                // Quality slider
+                this.qualitySlider.addEventListener('input', (e) => {
+                    this.quality = parseInt(e.target.value);
+                    this.qualityValue.textContent = this.quality;
+                });
+
+                // Convert button
+                this.convertButton.addEventListener('click', () => this.convertAudio());
+            }
+
+            async handleFileSelect(file) {
+                if (!file) return;
+
+                if (!file.type.startsWith('audio/')) {
+                    this.showError('Please select a valid audio file.');
+                    return;
+                }
+
+                this.originalFile = file;
+                this.hideMessages();
+                
+                // Show file info
+                this.fileName.textContent = file.name;
+                this.fileDetails.textContent = `Size: ${this.formatFileSize(file.size)} | Type: ${file.type}`;
+                this.fileInfo.style.display = 'block';
+                this.conversionOptions.style.display = 'block';
+
+                try {
+                    // Initialize audio context if needed
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+
+                    // Load and decode audio file
+                    const arrayBuffer = await file.arrayBuffer();
+                    this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+                    
+                    // Update file details with audio info
+                    const duration = this.formatDuration(this.audioBuffer.duration);
+                    const sampleRate = this.audioBuffer.sampleRate;
+                    const channels = this.audioBuffer.numberOfChannels;
+                    
+                    this.fileDetails.textContent = `${duration} | ${sampleRate}Hz | ${channels} channel(s) | ${this.formatFileSize(file.size)}`;
+                    
+                } catch (error) {
+                    this.showError('Error loading audio file. Please try a different file.');
+                    console.error('Audio loading error:', error);
+                }
+            }
+
+            selectFormat(option) {
+                document.querySelectorAll('.format-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                
+                option.classList.add('selected');
+                this.selectedFormat = option.dataset.format;
+                this.convertButton.style.display = 'block';
+            }
+
+            async convertAudio() {
+                if (!this.audioBuffer || !this.selectedFormat) {
+                    this.showError('Please select a file and output format.');
+                    return;
+                }
+
+                this.convertButton.disabled = true;
+                this.showProgress();
+                this.hideMessages();
+
+                try {
+                    let convertedBlob;
+                    
+                    switch (this.selectedFormat) {
+                        case 'wav':
+                            convertedBlob = await this.convertToWav();
+                            break;
+                        case 'mp3':
+                            convertedBlob = await this.convertToMp3();
+                            break;
+                        case 'ogg':
+                            convertedBlob = await this.convertToOgg();
+                            break;
+                        case 'flac':
+                            convertedBlob = await this.convertToFlac();
+                            break;
+                        case 'aac':
+                            convertedBlob = await this.convertToAac();
+                            break;
+                        default:
+                            throw new Error('Unsupported format');
+                    }
+
+                    this.downloadFile(convertedBlob);
+                    this.showSuccess('Audio converted successfully!');
+                    
+                } catch (error) {
+                    this.showError('Conversion failed. Please try again.');
+                    console.error('Conversion error:', error);
+                } finally {
+                    this.convertButton.disabled = false;
+                    this.hideProgress();
+                }
+            }
+
+            async convertToWav() {
+                const numberOfChannels = this.audioBuffer.numberOfChannels;
+                const sampleRate = this.audioBuffer.sampleRate;
+                const length = this.audioBuffer.length;
+                
+                // Create interleaved buffer
+                const interleavedBuffer = new Float32Array(length * numberOfChannels);
+                
+                for (let channel = 0; channel < numberOfChannels; channel++) {
+                    const channelData = this.audioBuffer.getChannelData(channel);
+                    for (let i = 0; i < length; i++) {
+                        interleavedBuffer[i * numberOfChannels + channel] = channelData[i];
+                    }
+                }
+
+                // Convert to 16-bit PCM
+                const pcmBuffer = new Int16Array(interleavedBuffer.length);
+                for (let i = 0; i < interleavedBuffer.length; i++) {
+                    pcmBuffer[i] = Math.max(-32768, Math.min(32767, interleavedBuffer[i] * 32768));
+                }
+
+                // Create WAV file
+                const wavBuffer = this.createWavBuffer(pcmBuffer, numberOfChannels, sampleRate);
+                return new Blob([wavBuffer], { type: 'audio/wav' });
+            }
+
+            createWavBuffer(pcmBuffer, numberOfChannels, sampleRate) {
+                const buffer = new ArrayBuffer(44 + pcmBuffer.length * 2);
+                const view = new DataView(buffer);
+
+                // WAV header
+                const writeString = (offset, string) => {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                };
+
+                writeString(0, 'RIFF');
+                view.setUint32(4, 36 + pcmBuffer.length * 2, true);
+                writeString(8, 'WAVE');
+                writeString(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, numberOfChannels, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * numberOfChannels * 2, true);
+                view.setUint16(32, numberOfChannels * 2, true);
+                view.setUint16(34, 16, true);
+                writeString(36, 'data');
+                view.setUint32(40, pcmBuffer.length * 2, true);
+
+                // PCM data
+                for (let i = 0; i < pcmBuffer.length; i++) {
+                    view.setInt16(44 + i * 2, pcmBuffer[i], true);
+                }
+
+                return buffer;
+            }
+
+            async convertToMp3() {
+                // For MP3, we'll use MediaRecorder API with MP3 encoding if available
+                // Otherwise, fall back to WAV
+                if (!MediaRecorder.isTypeSupported('audio/mp3')) {
+                    throw new Error('MP3 encoding not supported in this browser');
+                }
+                
+                return this.convertWithMediaRecorder('audio/mp3');
+            }
+
+            async convertToOgg() {
+                if (!MediaRecorder.isTypeSupported('audio/ogg')) {
+                    throw new Error('OGG encoding not supported in this browser');
+                }
+                
+                return this.convertWithMediaRecorder('audio/ogg');
+            }
+
+            async convertToFlac() {
+                // FLAC encoding is complex, for now we'll provide WAV as fallback
+                throw new Error('FLAC encoding requires additional libraries. Please use WAV format.');
+            }
+
+            async convertToAac() {
+                if (!MediaRecorder.isTypeSupported('audio/aac')) {
+                    throw new Error('AAC encoding not supported in this browser');
+                }
+                
+                return this.convertWithMediaRecorder('audio/aac');
+            }
+
+            async convertWithMediaRecorder(mimeType) {
+                return new Promise((resolve, reject) => {
+                    const source = this.audioContext.createBufferSource();
+                    const destination = this.audioContext.createMediaStreamDestination();
+                    
+                    source.buffer = this.audioBuffer;
+                    source.connect(destination);
+                    
+                    const mediaRecorder = new MediaRecorder(destination.stream, { 
+                        mimeType: mimeType,
+                        audioBitsPerSecond: this.quality * 1000
+                    });
+                    
+                    const chunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            chunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: mimeType });
+                        resolve(blob);
+                    };
+                    
+                    mediaRecorder.onerror = reject;
+                    
+                    mediaRecorder.start();
+                    source.start();
+                    
+                    // Stop recording when audio ends
+                    setTimeout(() => {
+                        mediaRecorder.stop();
+                    }, this.audioBuffer.duration * 1000 + 100);
+                });
+            }
+
+            downloadFile(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const originalName = this.originalFile.name.split('.').slice(0, -1).join('.');
+                
+                a.href = url;
+                a.download = `${originalName}.${this.selectedFormat}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            showProgress() {
+                this.progressContainer.style.display = 'block';
+                this.progressFill.style.width = '0%';
+                
+                // Simulate progress
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 20;
+                    if (progress >= 90) {
+                        clearInterval(interval);
+                        this.progressFill.style.width = '90%';
+                        return;
+                    }
+                    this.progressFill.style.width = `${progress}%`;
+                }, 100);
+            }
+
+            hideProgress() {
+                this.progressFill.style.width = '100%';
+                setTimeout(() => {
+                    this.progressContainer.style.display = 'none';
+                }, 500);
+            }
+
+            showError(message) {
+                this.errorMessage.textContent = message;
+                this.errorMessage.style.display = 'block';
+                this.successMessage.style.display = 'none';
+            }
+
+            showSuccess(message) {
+                this.successMessage.textContent = message;
+                this.successMessage.style.display = 'block';
+                this.errorMessage.style.display = 'none';
+            }
+
+            hideMessages() {
+                this.errorMessage.style.display = 'none';
+                this.successMessage.style.display = 'none';
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            formatDuration(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.floor(seconds % 60);
+                return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        // Initialize the converter when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AudioConverter();
+        });
+    </script>
+</body>
+</html>
